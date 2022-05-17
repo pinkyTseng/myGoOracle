@@ -1,0 +1,71 @@
+[
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "id",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "query",
+				"type": "string"
+			}
+		],
+		"name": "QueryEvent",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "cbAddress",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_query",
+				"type": "string"
+			}
+		],
+		"name": "query",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "id",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_cbAddress",
+				"type": "address"
+			}
+		],
+		"name": "setCbAddress",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]
