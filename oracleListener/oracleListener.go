@@ -2,7 +2,7 @@ package oracleListener
 
 import (
 	"context"
-	"encoding/json"
+	// "encoding/json"
 	"errors"
 	"math/big"
 	"math/rand"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"crypto/ecdsa"
+	"fmt"
 	"strings"
 
 	"log"
@@ -113,18 +114,36 @@ func getRandom(eventObj types.Log) {
 	// fmt.Println(string(event.Value[:])) // bar
 	// }
 
-	result, err := oracleABI.Unpack("QueryEvent", eventObj.Data)
-	if err != nil {
-		//log.Println(err)
-		log.Fatal(err)
+	event := struct {
+		Id    [32]byte
+		Query string
+	}{}
+	upPackErr := oracleABI.UnpackIntoInterface(&event, "QueryEvent", eventObj.Data)
+	if upPackErr != nil {
+		log.Fatal(upPackErr)
 	}
 
+	fmt.Println(string(event.Id[:]))
+	fmt.Println(string(event.Query[:]))
+
+	// result, err := oracleABI.Unpack("QueryEvent", eventObj.Data)
+	// if err != nil {
+	// 	//log.Println(err)
+	// 	log.Fatal(err)
+	// }
+
 	//event QueryEvent(bytes32 id, string query);
-	id := result[0]
-	query := result[1]
+
+	// id := result[0]
+	// query := result[1]
+	id := event.Id
+	query := event.Query
+
 	// randomRange := strings.Split(query.(string), "-")
 	// var value = _randomIntInc(randomRange[0], randomRange[1])
-	value, err := randomIntInc(query.(string))
+
+	// value, err := randomIntInc(query.(string))
+	value, err := randomIntInc(query)
 	if err != nil {
 		//log.Error(err)
 		log.Println(err)
@@ -192,19 +211,20 @@ func getRandom(eventObj types.Log) {
 
 	// []byte([]uint8{uint8(2), uint8(3)})
 
-	idByteSlice, err := json.Marshal(id)
-	if err != nil {
-		log.Fatalf("json.Marshal(id) fail: %v", err)
-	}
-	var idByteArr [32]byte
-	copy(idByteArr[:], idByteSlice[:32])
+	// idByteSlice, err := json.Marshal(id)
+	// if err != nil {
+	// 	log.Fatalf("json.Marshal(id) fail: %v", err)
+	// }
+	// var idByteArr [32]byte
+	// copy(idByteArr[:], idByteSlice[:32])
 
 	intRandomStr := strconv.Itoa(value)
 
-	log.Println("idByteArr: ", idByteArr)
+	log.Println("idByteArr: ", id)
 	log.Println("intRandomStr: ", intRandomStr)
 
-	tx, err := callbackIns.Callback(auth, idByteArr, intRandomStr)
+	// tx, err := callbackIns.Callback(auth, idByteArr, intRandomStr)
+	tx, err := callbackIns.Callback(auth, id, intRandomStr)
 	if err != nil {
 		log.Fatalf("Fail exec Callbacks: %v", err)
 	}
