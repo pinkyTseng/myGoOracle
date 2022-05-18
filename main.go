@@ -29,7 +29,8 @@ func init() {
 func main() {
 
 	//first start by the command -> run truffle migration -> change config at listener -> run the go app
-	// geth --datadir /Users/pinkytseng/Documents/pinkyGethData --networkid 18 --port 30303 --http --http.addr 0.0.0.0 --http.vhosts "*"  --http.port 8545 --http.api 'db,net,eth,web3,personal' --http.corsdomain "*"  --ws --dev --dev.period 1 console 2> 1.log
+	// geth --datadir /Users/pinkytseng/Documents/pinkyGethData --networkid 18 --port 30303 --http --http.addr 0.0.0.0 --http.vhosts "*"  --http.port 8545 --http.api 'db,net,eth,web3,personal' --http.corsdomain "*"  --ws  --dev --dev.period 1  --allow-insecure-unlock console 2> 1.log
+	// geth --datadir /Users/pinkytseng/Documents/pinkyGethData --networkid 18 --port 30303 --http --http.addr 0.0.0.0 --http.vhosts "*"  --http.port 8545 --http.api 'db,net,eth,web3,personal' --http.corsdomain "*"  --ws --allow-insecure-unlock  --dev --dev.period 1 console 2> 1.log
 
 	var userComd string
 

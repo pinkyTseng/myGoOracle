@@ -2,11 +2,14 @@ package oracleListener
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"math/big"
 	"math/rand"
 	"strconv"
 	"time"
 
+	"crypto/ecdsa"
 	"strings"
 
 	"log"
@@ -19,14 +22,23 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+
+	// "github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/pinkyTseng/myGoOracle/contractMeta"
 )
 
-var ethereumUri string = "ws://localhost:8546"
-var callbackAddrStr string = "0x20faBc5Ea9baFD923E8B9fB4abD09Eef54dC06cC"
-var oracleAddrStr string = "0x702cEa0Ce3b7cEE1080be8bD89899C9a06B171D9"
-var diceAddrStr string = "0xb37Bdc74Bc8A4D22d8BE376E610BcB1113996dc8"
+var ethereumUri string = "ws://localhost:8545"
+var ethereumHttpUri string = "http://localhost:8545"
+var callbackAddrStr string = "0x9c66139681c918a41e8B05Caf5653aff0aA410b8"
+var oracleAddrStr string = "0x8058Cd17a879a23dC515b3B152ABCa1A5eB6a0af"
+var diceAddrStr string = "0x2E26C409DbbA7A335Fd207189b33Ea8bcd20A199"
+
+var callbackPrivateKey string = "85dec634b5fd256afaab46c39f2be809a6bcda4dcbc1ae961584d24c87377a5a"
+
+// var client *ethclient.Client
 
 //var password string = ""; //替換成可以unlock callbackAddr的密碼
 
@@ -51,6 +63,8 @@ func listenToEvent() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	defer client.Close()
 
 	oracleAddress := common.HexToAddress(oracleAddrStr)
 	query := ethereum.FilterQuery{
@@ -115,39 +129,86 @@ func getRandom(eventObj types.Log) {
 		//log.Error(err)
 		log.Println(err)
 	}
-	log.Println("get random value: %v", value)
-	log.Println("get id: %v", id)
+	log.Println("get random value: ", value)
+	log.Println("get id: ", id)
 
-	// demoIns, err := NewCalldemo(common.HexToAddress("0x6D4e7f39E8cAA4aB8b4917B82f1E69a924712906"), conn)
+	client, err := ethclient.Dial(ethereumHttpUri)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer client.Close()
+
+	//~~~~~~~~~~~~
+
+	privateKey, err := crypto.HexToECDSA(callbackPrivateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("error casting public key to ECDSA")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	auth := bind.NewKeyedTransactor(privateKey)
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = big.NewInt(0)     // in wei
+	auth.GasLimit = uint64(300000) // in units
+	auth.GasPrice = gasPrice
+
+	callbackIns, err := contractMeta.NewDice(common.HexToAddress(diceAddrStr), client)
+	if err != nil {
+		log.Fatalf("Fail NewDice: %v", err)
+	}
+
+	//~~~~~~~~~~~~~~~~~~~~
+
+	// keyFile := "/Users/pinkytseng/Documents/pinkyGethData/keystore/UTC--2022-05-18T06-07-40.701761000Z--0405326679ad037df5c2e28868e98e6bea71e8ad"
+	// reader, _ := os.Open(keyFile)
+	// opts, err := bind.NewTransactorWithChainID(reader, "", big.NewInt(18))
 	// if err != nil {
-	// 	log.Fatalf("Fail NewCalldemo: %v", err)
+	// 	log.Fatalf("Fail NewTransactor: %v", err)
 	// }
 
-	// val, err := demoIns.Message(nil)
-	// if err != nil {
-	// 	log.Fatalf("Fail get Message: %v", err)
-	// }
+	// gasPrice, err := client.SuggestGasPrice(context.Background())
+	// log.Println("gasPrice: ", gasPrice)
+	// opts.GasPrice = big.NewInt(8000)
 
-	// // must to unlock the cbAddress before firing
-	// web3.personal.unlockAccount(web3.eth.defaultAccount, password);
-	// console.log(`fire _callback(${id[0]}, ${value}) back to Dice`);
-	// let txid = dice.instance._callback(id[0], '' + value, {gas: 200000});
-	// console.log(`txid = ${txid}`)
+	clientChainid, err := client.NetworkID(context.Background())
+	log.Println("clientChainid: ", clientChainid)
 
-	// eventObj.
+	// []byte([]uint8{uint8(2), uint8(3)})
 
-	// // get query id
-	// var id = _.at(result, 'args.id');
-	// // get query string
-	// var query = _.split(_.at(result, 'args.query'), '-', 2);
-	// // generate a random number according to query string
-	// var value = _randomIntInc(query[0], query[1]);
+	idByteSlice, err := json.Marshal(id)
+	if err != nil {
+		log.Fatalf("json.Marshal(id) fail: %v", err)
+	}
+	var idByteArr [32]byte
+	copy(idByteArr[:], idByteSlice[:32])
 
-	// // must to unlock the cbAddress before firing
-	// web3.personal.unlockAccount(web3.eth.defaultAccount, password);
-	// console.log(`fire _callback(${id[0]}, ${value}) back to Dice`);
-	// let txid = dice.instance._callback(id[0], '' + value, {gas: 200000});
-	// console.log(`txid = ${txid}`)
+	intRandomStr := strconv.Itoa(value)
+
+	log.Println("idByteArr: ", idByteArr)
+	log.Println("intRandomStr: ", intRandomStr)
+
+	tx, err := callbackIns.Callback(auth, idByteArr, intRandomStr)
+	if err != nil {
+		log.Fatalf("Fail exec Callbacks: %v", err)
+	}
+	log.Println("tx is: ", tx)
 
 }
 
