@@ -40,9 +40,12 @@ var packageCommonErr error
 var clientTrace *httptrace.ClientTrace
 var traceCtx context.Context
 
+var errorCount int
+
 func init() {
 	// log.SetFlags(log.Ldate | log.Lmicroseconds | log.Llongfile)
 	rand.Seed(time.Now().UnixNano())
+	errorCount = 0
 
 	setUsedContext()
 	initOracleCompoent()
@@ -99,15 +102,21 @@ func initOracleCompoent() {
 	}
 }
 
-func DialHttpWithCustomContext(rawurl string, customContext *context.Context) (*ethclient.Client, error) {
-	return ethclient.DialContext(*customContext, rawurl)
-}
+// func DialHttpWithCustomContext(rawurl string, customContext *context.Context) (*ethclient.Client, error) {
+// 	return ethclient.DialContext(*customContext, rawurl)
+// }
 
 func genAuthOpt(privateKey *ecdsa.PrivateKey, nonce uint64, gasPrice *big.Int) *bind.TransactOpts {
+	defer func() {
+		if r := recover(); r != nil {
+			// notify server owner credential has some error
+			panic(r)
+		}
+	}()
 	// auth := bind.NewKeyedTransactor(privateKey)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(ChainID))
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)     // in wei
@@ -118,15 +127,21 @@ func genAuthOpt(privateKey *ecdsa.PrivateKey, nonce uint64, gasPrice *big.Int) *
 }
 
 func getAuthNoQuryData() (*ecdsa.PrivateKey, common.Address) {
+	defer func() {
+		if r := recover(); r != nil {
+			// notify server owner credential has some error
+			panic(r)
+		}
+	}()
 	privateKey, err := crypto.HexToECDSA(callbackPrivateKey)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		log.Fatal("error casting public key to ECDSA")
+		log.Panic("error casting public key to ECDSA")
 	}
 
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
@@ -137,25 +152,26 @@ func getAuthQuryData(client *ethclient.Client, fromAddress common.Address) (uint
 	// nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
 	nonce, err := client.PendingNonceAt(traceCtx, fromAddress)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	// gasPrice, err := client.SuggestGasPrice(context.Background())
 	gasPrice, err := client.SuggestGasPrice(traceCtx)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	return nonce, gasPrice
 }
 
 func handleEventData(eventObj types.Log) ([32]byte, int) {
+
 	event := struct {
 		Id    [32]byte
 		Query string
 	}{}
 	upPackErr := oracleABI.UnpackIntoInterface(&event, "QueryEvent", eventObj.Data)
 	if upPackErr != nil {
-		log.Fatal(upPackErr)
+		log.Panic(upPackErr)
 	}
 
 	id := event.Id
@@ -163,7 +179,8 @@ func handleEventData(eventObj types.Log) ([32]byte, int) {
 
 	value, err := randomIntInc(query)
 	if err != nil {
-		log.Println(err)
+		// May be notify user from server
+		log.Panic(err)
 	}
 	log.Println("get random value: ", value)
 	log.Println("get id: ", id)
@@ -171,11 +188,17 @@ func handleEventData(eventObj types.Log) ([32]byte, int) {
 }
 
 func getRandom(eventObj types.Log) {
+	defer func() {
+		if r := recover(); r != nil {
+			//if errorCount >= XX, notify server owner
+			errorCount++
+		}
+	}()
 	log.Println("getRandom trigger")
 	id, value := handleEventData(eventObj)
 	client, err := ethclient.Dial(ethereumHttpUri)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer client.Close()
 
@@ -185,13 +208,13 @@ func getRandom(eventObj types.Log) {
 
 	callbackIns, err := contractMeta.NewDice(common.HexToAddress(diceAddrStr), client)
 	if err != nil {
-		log.Fatalf("Fail NewDice: %v", err)
+		log.Panicf("Fail NewDice: %v", err)
 	}
 
 	intRandomStr := strconv.Itoa(value)
 	tx, err := callbackIns.Callback(auth, id, intRandomStr)
 	if err != nil {
-		log.Fatalf("Fail exec Callbacks: %v", err)
+		log.Panicf("Fail exec Callbacks: %v", err)
 	}
 	_ = tx
 	//log.Println("tx is: ", tx)
@@ -208,12 +231,12 @@ func randomIntInc(randomRange string) (int, error) {
 
 	min, err := strconv.Atoi(minStr)
 	if err != nil {
-		log.Fatal(err)
+		return 0, err
 	}
 
 	max, err := strconv.Atoi(maxStr)
 	if err != nil {
-		log.Fatal(err)
+		return 0, err
 	}
 
 	if min < 0 {
