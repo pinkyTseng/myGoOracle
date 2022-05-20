@@ -12,11 +12,12 @@ Consider simplicity and adjustability. Reduce most of the tedious operations and
     - -installed the Ganache (the Ganache UI version seems to not support the ws protocol, so if you want to run on Ganache, don't use the UI version)
 
 - The steps
-    1. set up the "MyGethOracleSetting" environment variable. It defines the setting files directory path. (ps: it needs to end up with "/", both projects need the variable)       
-    2. modify the files in the directory defined by "MyGethOracleSetting" according to your requirements.
-    3. start the ganache, then modify the "DeployerPrivateKey" in the privateKey.json file. (only run with ganache need the step)
-    4. cd to "DiceMyOracle" project, run truffle migrate --network XXX --reset, and wait for it to be done.
-    5. cd to "myGoOracle" project, run the Oracle service  
+    1. set up the "MyGethOracleSetting" environment variable. It defines the setting files directory path. (ps: it needs to end up with "/", both projects need the variable)
+    2. copy all files and content in the "settingExample" directory to the "MyGethOracleSetting" directory    
+    3. modify the files in the directory defined by "MyGethOracleSetting" according to your requirements.
+    4. start the ganache, then modify the "DeployerPrivateKey" in the privateKey.json file. (only run with ganache need the step)
+    5. cd to "DiceMyOracle" project, run truffle migrate --network XXX --reset, and wait for it to be done.
+    6. cd to "myGoOracle" project, run the Oracle service  
 
 - The directory structure of MyGethOracleSetting
     - ContractAddresses.json: it is read and written by both project programs automatically, no need to modify it.
