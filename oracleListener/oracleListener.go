@@ -27,7 +27,8 @@ import (
 )
 
 type privateKeySetting struct {
-	CallbackPrivateKey string `json:"CallbackPrivateKey"`
+	// CallbackPrivateKey string `json:"CallbackPrivateKey"`
+	DeployerPrivateKey string `json:"DeployerPrivateKey"`
 }
 
 type contractAddresses struct {
@@ -144,7 +145,8 @@ func setCallbackPrivateKey() {
 	v := privateKeySetting{}
 	json.Unmarshal(content, &v)
 
-	callbackPrivateKey = v.CallbackPrivateKey
+	callbackPrivateKey = v.DeployerPrivateKey
+	// callbackPrivateKey = v.CallbackPrivateKey
 }
 
 func initDynamicSettings() {
