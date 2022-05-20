@@ -3,11 +3,14 @@ package oracleListener
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"math/big"
 	"math/rand"
 	"net/http/httptrace"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -23,17 +26,34 @@ import (
 	"github.com/pinkyTseng/myGoOracle/contractMeta"
 )
 
-//setting vars
-var ethereumUri string = "ws://localhost:8545"
-var ethereumHttpUri string = "http://localhost:8545"
-var oracleAddrStr string = "0xD02053727A6a5879cfB07EC2d1223E6D8635218d"
-var diceAddrStr string = "0x35a59391ee5A30D70DFa04A88c0924793408ED0b"
-var callbackPrivateKey string = "1d02daeddc5b76af157a41def1704b900b902359afc906ac973e299f419d70f3"
-var ChainID int64 = 1337
+type privateKeySetting struct {
+	CallbackPrivateKey string `json:"CallbackPrivateKey"`
+}
 
+type contractAddresses struct {
+	OracleAddrStr string `json:"oracleAddr"`
+	DiceAddrStr   string `json:"diceAddr"`
+}
+
+type network struct {
+	EthereumUri     string `json:"ethereumUri"`
+	EthereumHttpUri string `json:"ethereumHttpUri"`
+	ChainID         string `json:"chainID"`
+}
+
+//setting vars
+var envSettingDirKey string = "MyGethOracleSetting"
 var detailMode bool = false
 
-// package vars
+var ethereumUri string = ""
+var ethereumHttpUri string = ""
+var oracleAddrStr string = ""
+var diceAddrStr string = ""
+var callbackPrivateKey string = ""
+var ChainID int64
+
+var configDir string
+
 var oracleABI abi.ABI
 var packageCommonErr error
 
@@ -43,13 +63,99 @@ var traceCtx context.Context
 var errorCount int
 
 func init() {
-	// log.SetFlags(log.Ldate | log.Lmicroseconds | log.Llongfile)
 	rand.Seed(time.Now().UnixNano())
 	errorCount = 0
+	initDynamicSettings()
 
 	setUsedContext()
 	initOracleCompoent()
 	go listenToEvent()
+}
+
+func setContractAddresses() {
+	f, err := os.Open(configDir + "ContractAddresses.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	content, err := io.ReadAll(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	v := contractAddresses{}
+	json.Unmarshal(content, &v)
+
+	oracleAddrStr = v.OracleAddrStr
+	diceAddrStr = v.DiceAddrStr
+}
+
+func getNetworkSetting() string {
+	f, err := os.Open(configDir + "networkSetting.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	content, err := io.ReadAll(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return string(content)
+}
+
+func setNetwork(networkSetting string) {
+	f, err := os.Open(configDir + "network/" + networkSetting + ".json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	content, err := io.ReadAll(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	v := network{}
+	json.Unmarshal(content, &v)
+
+	ethereumHttpUri = v.EthereumHttpUri
+	ethereumUri = v.EthereumUri
+	ChainID, err = strconv.ParseInt(v.ChainID, 10, 64)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func setCallbackPrivateKey() {
+	f, err := os.Open(configDir + "privateKey.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	content, err := io.ReadAll(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	v := privateKeySetting{}
+	json.Unmarshal(content, &v)
+
+	callbackPrivateKey = v.CallbackPrivateKey
+}
+
+func initDynamicSettings() {
+	configDir = os.Getenv(envSettingDirKey)
+	if configDir == "" {
+		log.Fatal("Need set the environment variable")
+	}
+	setContractAddresses()
+	networkSetting := getNetworkSetting()
+	setNetwork(networkSetting)
+	setCallbackPrivateKey()
 }
 
 func setUsedContext() {
@@ -149,13 +255,11 @@ func getAuthNoQuryData() (*ecdsa.PrivateKey, common.Address) {
 }
 
 func getAuthQuryData(client *ethclient.Client, fromAddress common.Address) (uint64, *big.Int) {
-	// nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
 	nonce, err := client.PendingNonceAt(traceCtx, fromAddress)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	// gasPrice, err := client.SuggestGasPrice(context.Background())
 	gasPrice, err := client.SuggestGasPrice(traceCtx)
 	if err != nil {
 		log.Panic(err)
