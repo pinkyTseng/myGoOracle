@@ -5,7 +5,7 @@
 It is a self-constructed Oracle service implemented by GO. It is mainly implemented through subscribing the event to accept the smart contract call, then our Oracle service calls the callback function provided by the smart contract. In the project, we call the Oracle service to get a random number. (ps: This project should be run in conjunction with the [DiceMyOracle](https://github.com/pinkyTseng/DiceMyOracle) project).
 
 ## How to start up
-Consider simplicity and adjustability. Reduce most of the tedious operations and implement an automated deploy flow by setting one environment variable "MyGethOracleSetting" and a predefined setting structure (reference the settingExample directory). 
+Consider simplicity and adjustability. Reduce most of the tedious operations and implement an automated deploy flow by setting one environment variable "MyGethOracleSetting" and a predefined setting structure (reference the "settingExample" directory). 
 
 - Pre requirements
     - installed the Truffle
